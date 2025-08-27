@@ -1,7 +1,7 @@
 """
 Synchronous Laneful API client implementation.
 
-Requires: pip install laneful-python (included by default)
+Requires: pip install laneful (included by default)
 """
 
 from typing import Any, Dict, Optional
@@ -11,7 +11,7 @@ try:
 except ImportError:
     raise ImportError(
         "LanefulClient requires requests. "
-        "Install with: pip install laneful-python[sync] or pip install laneful-python"
+        "Install with: pip install laneful[sync] or pip install laneful"
     )
 
 from .base import BaseLanefulClient

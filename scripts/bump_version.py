@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Version management script for laneful-python.
+Version management script for laneful.
 
 Usage:
     python scripts/bump_version.py --dev               # Set to dev version for TestPyPI

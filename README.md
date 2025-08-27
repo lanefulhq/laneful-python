@@ -11,19 +11,19 @@ The library supports flexible installation options:
 
 ```bash
 # Default installation (sync client only)
-pip install laneful-python
+pip install laneful
 
 # Add async support to existing sync installation
-pip install laneful-python[async] 
+pip install laneful[async] 
 
 # Async-only (no sync dependencies)
-pip install laneful-python[async-only]
+pip install laneful[async-only]
 
 # Explicit sync support (same as default)
-pip install laneful-python[sync]
+pip install laneful[sync]
 
 # Full support (both sync and async)
-pip install laneful-python[all]
+pip install laneful[all]
 ```
 
 ## Quick Start
@@ -31,7 +31,7 @@ pip install laneful-python[all]
 ### Synchronous Usage
 
 ```bash
-pip install laneful-python  # Default installation
+pip install laneful  # Default installation
 ```
 
 ```python
@@ -60,9 +60,9 @@ print(f"Email sent successfully: {response.status}")
 ### Asynchronous Usage
 
 ```bash
-pip install laneful-python[async]  # Add async to sync
+pip install laneful[async]  # Add async to sync
 # OR
-pip install laneful-python[async-only]  # Pure async, no sync deps
+pip install laneful[async-only]  # Pure async, no sync deps
 ```
 
 ```python

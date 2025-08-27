@@ -84,7 +84,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'testpypi')
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/laneful-python
+      url: https://test.pypi.org/p/laneful
     permissions:
       id-token: write  # For trusted publishing
     
@@ -110,7 +110,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'pypi')
     environment:
       name: pypi
-      url: https://pypi.org/p/laneful-python
+      url: https://pypi.org/p/laneful
     permissions:
       id-token: write  # For trusted publishing
     
@@ -143,11 +143,11 @@ jobs:
         body: |
           ## Changes in ${{ env.RELEASE_VERSION }}
           
-          Released to PyPI: https://pypi.org/project/laneful-python/${{ env.RELEASE_VERSION }}/
+          Released to PyPI: https://pypi.org/project/laneful/${{ env.RELEASE_VERSION }}/
           
           ### Installation
           ```bash
-          pip install laneful-python==${{ env.RELEASE_VERSION }}
+          pip install laneful==${{ env.RELEASE_VERSION }}
           ```
           
           ### What's Changed

@@ -1,7 +1,7 @@
 """
 Asynchronous Laneful API client implementation.
 
-Requires: pip install laneful-python[async]
+Requires: pip install laneful[async]
 """
 
 import asyncio
@@ -12,7 +12,7 @@ try:
 except ImportError:
     raise ImportError(
         "AsyncLanefulClient requires aiohttp. "
-        "Install with: pip install laneful-python[async]"
+        "Install with: pip install laneful[async]"
     )
 
 from .base import BaseLanefulClient

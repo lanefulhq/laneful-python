@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Release script for laneful-python
+# Release script for laneful
 # Usage: ./scripts/release.sh 1.0.0
 
 if [ $# -eq 0 ]; then

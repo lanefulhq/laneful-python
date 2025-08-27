@@ -4,9 +4,9 @@ Laneful Python Client Library
 A Python client library for the Laneful API with both sync and async support.
 
 Installation:
-- Default (sync only): pip install laneful-python
-- Async support: pip install laneful-python[async]
-- Full support: pip install laneful-python[all]
+- Default (sync only): pip install laneful
+- Async support: pip install laneful[async]
+- Full support: pip install laneful[all]
 """
 
 from typing import List, Optional, Type
