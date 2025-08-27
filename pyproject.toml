@@ -1,6 +1,6 @@
 [project]
 name = "laneful"
-version = "1.0.0.dev0"
+version = "1.0.0"
 description = "Python client library for the Laneful API"
 readme = "README.md"
 requires-python = ">=3.10"
