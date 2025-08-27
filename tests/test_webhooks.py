@@ -1,17 +1,16 @@
 """Tests for webhook handling functionality."""
 
-import json
-import hmac
 import hashlib
+import hmac
+import json
 from unittest.mock import Mock
+
 import pytest
 
 from laneful.webhooks import (
-    WebhookHandler, 
-    WebhookEvent, 
+    WebhookEvent,
     WebhookEventType,
-    create_flask_webhook_handler,
-    create_fastapi_webhook_handler
+    WebhookHandler,
 )
 
 
@@ -212,41 +211,6 @@ class TestWebhookIntegrations:
             "timestamp": 1640995200,
             "data": {}
         }
-    
-    @pytest.mark.skipif(True, reason="Flask integration test - requires Flask")
-    def test_flask_integration(self):
-        """Test Flask integration (skipped if Flask not available)."""
-        try:
-            from flask import Flask
-            from unittest.mock import patch
-            
-            flask_handler = create_flask_webhook_handler(self.handler)
-            
-            # Mock Flask request
-            with patch('laneful.webhooks.request') as mock_request:
-                mock_request.data = json.dumps(self.sample_payload).encode()
-                mock_request.get_json.return_value = self.sample_payload
-                mock_request.headers.get.return_value = None
-                
-                with patch('laneful.webhooks.jsonify') as mock_jsonify:
-                    mock_jsonify.return_value = {"status": "success"}
-                    result = flask_handler()
-                    assert result == {"status": "success"}
-                    
-        except ImportError:
-            pytest.skip("Flask not available")
-    
-    @pytest.mark.skipif(True, reason="FastAPI integration test - requires FastAPI")
-    def test_fastapi_integration(self):
-        """Test FastAPI integration (skipped if FastAPI not available)."""
-        try:
-            fastapi_handler = create_fastapi_webhook_handler(self.handler)
-            
-            result = fastapi_handler(self.sample_payload, None)
-            assert result == {"status": "success"}
-            
-        except ImportError:
-            pytest.skip("FastAPI not available")
 
 
 class TestWebhookEventType:

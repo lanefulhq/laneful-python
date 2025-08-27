@@ -1,8 +1,8 @@
 # Laneful Python Client
 
-A Python client library for the [Laneful API](https://github.com/lanefulhq/laneful-go), providing easy email sending capabilities with support for templates, attachments, tracking, and webhooks. 
+A Python client library for the [Laneful API](https://app.laneful.com/docs/sending-email), providing easy email sending capabilities with support for templates, attachments, tracking, and webhooks. 
 
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Installation
@@ -90,17 +90,6 @@ async def send_email_async():
 
 # Run the async function
 asyncio.run(send_email_async())
-```
-
-### Check Available Features
-
-```python
-import laneful
-
-# Check what's available in your installation
-print("Available clients:", laneful.get_available_clients())
-print("Sync support:", laneful.has_sync_support()) 
-print("Async support:", laneful.has_async_support())
 ```
 
 ## Features
@@ -255,11 +244,15 @@ async with AsyncLanefulClient(base_url, auth_token) as client:
 ### Template Email
 
 ```python
+from laneful import Email, Address, LanefulClient
+
+client = LanefulClient("https://custom-endpoint.send.laneful.net", "your-auth-token")
+
 email = Email(
     from_address=Address(email="sender@example.com"),
     to=[Address(email="user@example.com")],
     subject="Welcome!",
-    template_id="welcome-template",
+    template_id="11",
     template_data={
         "name": "John Doe",
         "company": "Acme Corp",
@@ -274,7 +267,9 @@ response = client.send_email(email)
 
 ```python
 import base64
-from laneful import Attachment
+from laneful import Attachment, Email, Address, LanefulClient
+
+client = LanefulClient("https://custom-endpoint.send.laneful.net", "your-auth-token")
 
 # Prepare attachment (base64 encoded content)
 with open("document.pdf", "rb") as f:
@@ -290,6 +285,7 @@ email = Email(
             file_name="document.pdf",
             content=content,
             content_type="application/pdf",
+            inline_id="123",
         )
     ],
 )
@@ -301,6 +297,10 @@ response = client.send_email(email)
 
 ```python
 import time
+
+from laneful import Email, Address, LanefulClient
+
+client = LanefulClient("https://custom-endpoint.send.laneful.net", "your-auth-token")
 
 # Schedule email to be sent 1 hour from now
 send_time = int(time.time()) + 3600
@@ -319,7 +319,9 @@ response = client.send_email(email)
 ### Email with Tracking
 
 ```python
-from laneful import TrackingSettings
+from laneful import TrackingSettings, Address, LanefulClient, Email
+
+client = LanefulClient("https://custom-endpoint.send.laneful.net", "your-auth-token")
 
 email = Email(
     from_address=Address(email="sender@example.com"),
@@ -335,34 +337,19 @@ email = Email(
 
 # Sync
 response = client.send_email(email)
-
-# Async
-response = await client.send_email(email)
 ```
 
-### Performance Comparison: Sync vs Async
+### AsyncIO support
 
 ```python
 import asyncio
-import time
-from laneful import LanefulClient, AsyncLanefulClient
-
-# Sync approach - sends emails sequentially
-def send_emails_sync(emails):
-    with LanefulClient(base_url, auth_token) as client:
-        responses = []
-        for email in emails:
-            response = client.send_email(email)
-            responses.append(response)
-        return responses
-
-# Async approach - sends emails concurrently  
+from laneful import AsyncLanefulClient
+  
 async def send_emails_async(emails):
-    async with AsyncLanefulClient(base_url, auth_token) as client:
+    async with AsyncLanefulClient("https://custom-endpoint.send.laneful.net", "your-auth-token") as client:
         tasks = [client.send_email(email) for email in emails]
         return await asyncio.gather(*tasks)
 
-# For large batches, async can be significantly faster!
 ```
 
 ## Webhook Handling
@@ -371,6 +358,8 @@ The library provides comprehensive webhook handling for email events:
 
 ```python
 from laneful.webhooks import WebhookHandler, WebhookEvent
+
+webhook_payload = dict()
 
 # Initialize webhook handler
 handler = WebhookHandler(webhook_secret="your-webhook-secret")
@@ -411,36 +400,6 @@ except LanefulError as e:
 ```
 
 ## Development
-
-### Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/lanefulhq/laneful-python.git
-cd laneful-python
-
-# Install development dependencies (includes both sync and async)
-pip install -e ".[dev]"
-
-# Or install specific configurations for testing
-pip install -e ".[all]"  # Full features
-pip install -e ".[sync]" # Sync only
-pip install -e ".[async]" # Async only
-```
-
-### Testing Different Configurations
-
-```bash
-# Test sync-only installation
-pip install -e . && python examples/check_installation.py
-
-# Test async-only installation  
-pip install -e ".[async]" && python examples/check_installation.py
-
-# Test full installation
-pip install -e ".[all]" && python examples/check_installation.py
-```
-
 ### Running Tests
 
 ```bash
@@ -469,28 +428,6 @@ isort laneful/ tests/
 ruff check laneful/
 ```
 
-## Requirements
-
-### Core
-- Python 3.8+
-- typing-extensions >= 4.0.0 (for Python < 3.10)
-
-### Optional Dependencies
-- **requests >= 2.28.0** (for sync client) - included by default
-- **aiohttp >= 3.8.0** (for async client) - install with `[async]`
-
-### Dependency Matrix
-
-| Feature | Default | `[sync]` | `[async]` | `[async-only]` | `[all]` |
-|---------|---------|----------|-----------|----------------|---------|
-| requests | ✅ | ✅ | ✅ | ❌ | ✅ |
-| aiohttp | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Bundle size | Small | Small | Large | Medium | Large |
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Contributing
 
 1. Fork the repository
@@ -503,9 +440,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 📖 [Documentation](https://github.com/lanefulhq/laneful-python#readme)
 - 🐛 [Bug Reports](https://github.com/lanefulhq/laneful-python/issues)
-- 💬 [Discussions](https://github.com/lanefulhq/laneful-python/discussions)
-
-## Related Projects
-
-- [Laneful Go Client](https://github.com/lanefulhq/laneful-go) - Official Go client library
-- [Laneful API Documentation](https://docs.laneful.com) - Complete API reference

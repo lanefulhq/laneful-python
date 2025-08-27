@@ -1,7 +1,8 @@
 """Tests for Laneful data models."""
 
 import pytest
-from laneful.models import Address, Email, Attachment, TrackingSettings, EmailResponse
+
+from laneful.models import Address, Attachment, Email, EmailResponse, TrackingSettings
 
 
 class TestAddress:

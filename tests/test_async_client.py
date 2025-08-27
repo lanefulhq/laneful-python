@@ -1,21 +1,22 @@
 """Tests for the async Laneful client."""
 
-import pytest
-import json
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 try:
     import aiohttp
-    from aiohttp import ClientTimeout, ClientConnectorError
+    from aiohttp import ClientConnectorError, ClientTimeout
+
     from laneful import AsyncLanefulClient
     AIOHTTP_AVAILABLE = True
 except ImportError:
     AIOHTTP_AVAILABLE = False
     AsyncLanefulClient = None
 
-from laneful import Email, Address, EmailResponse
-from laneful.exceptions import LanefulError, LanefulAPIError, LanefulAuthError
+from laneful import Address, Email, EmailResponse
+from laneful.exceptions import LanefulAPIError, LanefulAuthError, LanefulError
 
 # Skip all tests if aiohttp is not available
 pytestmark = pytest.mark.skipif(not AIOHTTP_AVAILABLE, reason="aiohttp not available")
@@ -79,7 +80,7 @@ class TestAsyncLanefulClient:
             assert response.message_id == "msg_123"
             
             # Verify the request was made correctly
-            mock_request.assert_called_once_with("POST", "/email", self.sample_email.to_dict())
+            mock_request.assert_called_once_with("POST", "/email/send", {'emails': [self.sample_email.to_dict()]})
     
     @pytest.mark.asyncio
     async def test_send_emails_success(self):
@@ -216,7 +217,7 @@ class TestAsyncLanefulClient:
     def test_del_with_unclosed_session(self):
         """Test __del__ warning when session is not closed."""
         import warnings
-        
+
         # Create a mock session that's not closed
         mock_session = Mock()
         mock_session.closed = False
@@ -234,7 +235,7 @@ class TestAsyncLanefulClient:
     def test_del_with_closed_session(self):
         """Test __del__ with closed session (no warning)."""
         import warnings
-        
+
         # Create a mock session that's closed
         mock_session = Mock()
         mock_session.closed = True

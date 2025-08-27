@@ -1,12 +1,13 @@
 """Tests for the Laneful client."""
 
-import pytest
 import json
 from unittest.mock import Mock, patch
+
+import pytest
 from requests.exceptions import ConnectionError, Timeout
 
-from laneful import LanefulClient, Email, Address, EmailResponse
-from laneful.exceptions import LanefulError, LanefulAPIError, LanefulAuthError
+from laneful import Address, Email, EmailResponse, LanefulClient
+from laneful.exceptions import LanefulAPIError, LanefulAuthError, LanefulError
 
 
 class TestLanefulClient:
@@ -61,7 +62,7 @@ class TestLanefulClient:
         call_args = mock_request.call_args
         assert call_args[1]["method"] == "POST"
         assert "/email" in call_args[1]["url"]
-        assert call_args[1]["json"] == self.sample_email.to_dict()
+        assert call_args[1]["json"] == {'emails': [self.sample_email.to_dict()]}
     
     @patch('requests.Session.request')
     def test_send_emails_success(self, mock_request):
