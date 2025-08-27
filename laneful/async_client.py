@@ -60,7 +60,7 @@ class AsyncLanefulClient(BaseLanefulClient):
         self.aiohttp_timeout = aiohttp.ClientTimeout(total=timeout)
 
         # Configure SSL context
-        self.ssl_context = None if verify_ssl else False
+        self.ssl_context = True if verify_ssl else False
 
         self._session: Optional[aiohttp.ClientSession] = None
 
@@ -117,7 +117,7 @@ class AsyncLanefulClient(BaseLanefulClient):
         except aiohttp.ClientError as e:
             raise LanefulError(f"Request failed: {str(e)}")
 
-    async def send_email(self, email: Email) -> EmailResponse:
+    async def send_email(self, email: Email) -> EmailResponse:  # type: ignore[override]
         """
         Send a single email asynchronously.
 
@@ -135,7 +135,7 @@ class AsyncLanefulClient(BaseLanefulClient):
         )
         return self._process_email_response(response_data)
 
-    async def send_emails(self, emails: EmailList) -> EmailResponseList:
+    async def send_emails(self, emails: EmailList) -> EmailResponseList:  # type: ignore[override]
         """
         Send multiple emails asynchronously.
 
@@ -157,7 +157,7 @@ class AsyncLanefulClient(BaseLanefulClient):
 
         return self._process_emails_response(response_data, len(emails))
 
-    async def get_email_status(self, message_id: str) -> Dict[str, Any]:
+    async def get_email_status(self, message_id: str) -> Dict[str, Any]:  # type: ignore[override]
         """
         Get the status of a sent email asynchronously.
 

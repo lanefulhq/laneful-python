@@ -62,7 +62,7 @@ class TrackingSettings:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API requests."""
-        result = {
+        result: Dict[str, Any] = {
             "opens": self.opens,
             "clicks": self.clicks,
             "unsubscribes": self.unsubscribes,

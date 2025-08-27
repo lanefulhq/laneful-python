@@ -106,8 +106,10 @@ target-version = "py38"
 dev = [
     "black>=24.8.0",
     "isort>=5.13.2",
+    "mypy>=1.17.1",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.24.0",
     "pyyaml>=6.0.2",
     "ruff>=0.12.10",
+    "types-requests>=2.32.4.20250809",
 ]

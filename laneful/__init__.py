@@ -9,28 +9,28 @@ Installation:
 - Full support: pip install laneful-python[all]
 """
 
-from typing import List
+from typing import List, Optional, Type
 
 from .exceptions import LanefulAPIError, LanefulAuthError, LanefulError
 from .models import Address, Attachment, Email, EmailResponse, TrackingSettings
 
 # Always available (sync client)
+LanefulClient: Optional[Type] = None
 try:
-    from .client import LanefulClient
+    from .client import LanefulClient  # noqa
 
     _has_sync = True
 except ImportError:
     _has_sync = False
-    LanefulClient = None
 
 # Conditionally available (async client)
+AsyncLanefulClient: Optional[Type] = None
 try:
-    from .async_client import AsyncLanefulClient
+    from .async_client import AsyncLanefulClient  # noqa
 
     _has_async = True
 except ImportError:
     _has_async = False
-    AsyncLanefulClient = None
 
 __version__ = "1.0.0"
 

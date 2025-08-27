@@ -84,7 +84,11 @@ class BaseLanefulClient(ABC):
     def _parse_json_response(self, response_text: str) -> Dict[str, Any]:
         """Parse JSON response text, handling decode errors."""
         try:
-            return json.loads(response_text)
+            result = json.loads(response_text)
+            # Ensure we return a dict, even if the JSON is valid but not a dict
+            if isinstance(result, dict):
+                return result
+            return {"data": result}
         except json.JSONDecodeError:
             return {"message": response_text}
 
@@ -97,8 +101,9 @@ class BaseLanefulClient(ABC):
     ) -> EmailResponseList:
         """Process bulk email response."""
         # Handle both single response and list of responses
-        if isinstance(response_data, list):
-            return [EmailResponse.from_dict(item) for item in response_data]
+        # Check if the API returned a list wrapped in "data" field
+        if "data" in response_data and isinstance(response_data["data"], list):
+            return [EmailResponse.from_dict(item) for item in response_data["data"]]
         elif "responses" in response_data:
             return [
                 EmailResponse.from_dict(item) for item in response_data["responses"]
