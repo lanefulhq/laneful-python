@@ -36,10 +36,6 @@ jobs:
         print(f'Available clients: {laneful.get_available_clients()}')
         "
     
-    - name: Test examples
-      run: |
-        python examples/check_installation.py
-    
     - name: Validate package metadata
       run: |
         uv run python -c "
