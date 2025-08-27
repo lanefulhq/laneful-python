@@ -11,8 +11,7 @@ try:
     import aiohttp
 except ImportError:
     raise ImportError(
-        "AsyncLanefulClient requires aiohttp. "
-        "Install with: pip install laneful[async]"
+        "AsyncLanefulClient requires aiohttp. Install with: pip install laneful[async]"
     )
 
 from .base import BaseLanefulClient
