@@ -210,6 +210,25 @@ for i, response in enumerate(responses):
     print(f"Email {i+1} status: {response.status}")
 ```
 
+### Bulk Email Sending
+
+For sending multiple emails at once, use the `send_emails` method:
+
+```python
+from laneful import LanefulClient, Email, Address
+
+client = LanefulClient("https://custom-endpoint.send.laneful.net", "your-auth-token")
+
+emails = [
+    Email(from_address=Address(email="sender@example.com"), 
+          to=[Address(email="user1@example.com")], subject="Hello User 1"),
+    Email(from_address=Address(email="sender@example.com"), 
+          to=[Address(email="user2@example.com")], subject="Hello User 2"),
+]
+
+responses = client.send_emails(emails)
+```
+
 #### Concurrent Email Sending (Async Only)
 
 ```python
