@@ -4,6 +4,8 @@ Asynchronous Laneful API client implementation.
 Requires: pip install laneful[async]
 """
 
+import warnings
+
 import asyncio
 from typing import Any, Dict, Optional
 
@@ -189,8 +191,6 @@ class AsyncLanefulClient(BaseLanefulClient):
         """Cleanup when object is garbage collected."""
         if self._session and not self._session.closed:
             # Don't await in __del__, just warn
-            import warnings
-
             warnings.warn(
                 "AsyncLanefulClient session was not closed properly. "
                 "Use 'async with client:' or call 'await client.close()' explicitly.",

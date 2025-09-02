@@ -2,7 +2,7 @@
 
 A Python client library for the [Laneful API](https://app.laneful.com/docs/sending-email), providing easy email sending capabilities with support for templates, attachments, tracking, and webhooks. 
 
-[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## Installation
