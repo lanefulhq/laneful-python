@@ -1,7 +1,6 @@
 name: Release
 
 on:
-  # Automatic TestPyPI release on pushes to main
   # Manual PyPI release when a tag is created
   push:
     branches: [ main ]
@@ -16,9 +15,7 @@ on:
         required: true
         type: choice
         options:
-          - testpypi
           - pypi
-        default: testpypi
 
 jobs:
   test:

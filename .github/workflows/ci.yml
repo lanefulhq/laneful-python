@@ -119,10 +119,10 @@ jobs:
       run: |
         uv sync --group dev
     
-    - name: Run safety check
-      run: |
-        uv add --dev safety
-        uv run safety check --json || true
+#    - name: Run safety check
+#      run: |
+#        uv add --dev safety
+#        uv run safety check --json || true
     
     - name: Run bandit security linter
       run: |

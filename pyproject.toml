@@ -106,6 +106,7 @@ target-version = "py38"
 
 [dependency-groups]
 dev = [
+    "bandit>=1.8.6",
     "black>=24.8.0",
     "isort>=5.13.2",
     "mypy>=1.17.1",
@@ -114,5 +115,6 @@ dev = [
     "pytest-cov>=6.2.1",
     "pyyaml>=6.0.2",
     "ruff>=0.12.10",
+    "safety>=3.6.1",
     "types-requests>=2.32.4.20250809",
 ]
