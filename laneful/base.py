@@ -4,11 +4,29 @@ Base client functionality shared between sync and async clients.
 
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict
-from urllib.parse import urljoin
+from typing import Any, Dict, Optional
+from urllib.parse import quote, urljoin
 
+from ._version import __version__
 from .exceptions import LanefulAPIError, LanefulAuthError
-from .models import Email, EmailList, EmailResponse, EmailResponseList
+from .models import Email, EmailList, EmailResponse, EmailResponseList, MailSettings
+from .org_models import (
+    CreateDomainRequest,
+    Domain,
+    ListDomainSpamRatioRadarParams,
+    ListDomainSpamRatioRadarResponse,
+    ListDomainsParams,
+    ListDomainsResponse,
+    ListGooglePostmasterSpamReportsParams,
+    ListGooglePostmasterSpamReportsResponse,
+    ListSndsReportsParams,
+    ListSndsReportsResponse,
+    ListUnsubscribeGroupsParams,
+    ListUnsubscribeGroupsResponse,
+    SuccessResponse,
+    UnsubscribeGroup,
+    UpdateDomainRequest,
+)
 
 
 class BaseLanefulClient(ABC):
@@ -16,6 +34,9 @@ class BaseLanefulClient(ABC):
     Base class for Laneful API clients.
 
     This abstract base class provides common functionality for both sync and async clients.
+    Email sending uses a send host (https://your-endpoint.send.laneful.net).
+    Domain, unsubscribe-group, and analytics endpoints use the organization
+    API host (https://api.laneful.net).
     """
 
     def __init__(
@@ -34,20 +55,39 @@ class BaseLanefulClient(ABC):
             timeout: Request timeout in seconds (default: 30.0)
             verify_ssl: Whether to verify SSL certificates (default: True)
         """
-        self.base_url = base_url.rstrip("/")
-        self.auth_token = auth_token
+        if not (base_url or "").strip():
+            raise ValueError("Base URL cannot be empty")
+        if not (auth_token or "").strip():
+            raise ValueError("Auth token cannot be empty")
+
+        self.base_url = base_url.strip().rstrip("/")
+        self.auth_token = auth_token.strip()
         self.timeout = timeout
         self.verify_ssl = verify_ssl
 
         self.headers = {
-            "Authorization": f"Bearer {auth_token}",
+            "Authorization": f"Bearer {self.auth_token}",
+            "Accept": "application/json",
             "Content-Type": "application/json",
-            "User-Agent": "laneful-python/1.0.0",
+            "User-Agent": f"laneful-python/{__version__}",
         }
 
     def _build_url(self, endpoint: str) -> str:
         """Build the full URL for an API endpoint."""
         return urljoin(self.base_url + "/v1/", endpoint.lstrip("/"))
+
+    def _encode_path(self, value: str) -> str:
+        """URL-encode a path segment (matches rawurlencode)."""
+        return quote(value, safe="-._~")
+
+    def _build_send_payload(
+        self, emails: EmailList, mail_settings: Optional[MailSettings] = None
+    ) -> Dict[str, Any]:
+        """Build the JSON body for /email/send."""
+        payload: Dict[str, Any] = {"emails": [email.to_dict() for email in emails]}
+        if mail_settings is not None:
+            payload["mail_settings"] = mail_settings.to_dict()
+        return payload
 
     def _process_response_data(
         self, response_data: Dict[str, Any], status_code: int
@@ -72,9 +112,13 @@ class BaseLanefulClient(ABC):
 
         # Handle API errors
         if status_code >= 400:
-            error_message = response_data.get("message", f"HTTP {status_code}")
+            error_message = (
+                response_data.get("error")
+                or response_data.get("message")
+                or f"HTTP {status_code}"
+            )
             raise LanefulAPIError(
-                message=error_message,
+                message=str(error_message),
                 status_code=status_code,
                 response_data=response_data,
             )
@@ -117,17 +161,104 @@ class BaseLanefulClient(ABC):
         if not emails:
             raise ValueError("Email list cannot be empty")
 
+    def _parse_unsubscribe_group(self, data: Dict[str, Any]) -> UnsubscribeGroup:
+        """Parse a create/update unsubscribe-group response."""
+        payload = data.get("unsubscribe_group")
+        if isinstance(payload, dict):
+            return UnsubscribeGroup.from_dict(payload)
+        return UnsubscribeGroup.from_dict(data)
+
     @abstractmethod
-    def send_email(self, email: Email) -> EmailResponse:
+    def send_email(
+        self, email: Email, mail_settings: Optional[MailSettings] = None
+    ) -> EmailResponse:
         """Send a single email. Must be implemented by subclasses."""
         pass
 
     @abstractmethod
-    def send_emails(self, emails: EmailList) -> EmailResponseList:
+    def send_emails(
+        self, emails: EmailList, mail_settings: Optional[MailSettings] = None
+    ) -> EmailResponseList:
         """Send multiple emails. Must be implemented by subclasses."""
         pass
 
     @abstractmethod
     def get_email_status(self, message_id: str) -> Dict[str, Any]:
         """Get email status. Must be implemented by subclasses."""
+        pass
+
+    @abstractmethod
+    def list_unsubscribe_groups(
+        self, workspace_id: int, params: Optional[ListUnsubscribeGroupsParams] = None
+    ) -> ListUnsubscribeGroupsResponse:
+        """List unsubscribe groups for a workspace."""
+        pass
+
+    @abstractmethod
+    def create_unsubscribe_group(
+        self, workspace_id: int, name: str
+    ) -> UnsubscribeGroup:
+        """Create an unsubscribe group in a workspace."""
+        pass
+
+    @abstractmethod
+    def update_unsubscribe_group(
+        self, workspace_id: int, unsubscribe_group_id: int, name: str
+    ) -> UnsubscribeGroup:
+        """Update an unsubscribe group."""
+        pass
+
+    @abstractmethod
+    def list_domains(
+        self, workspace_id: int, params: Optional[ListDomainsParams] = None
+    ) -> ListDomainsResponse:
+        """List sending domains for a workspace."""
+        pass
+
+    @abstractmethod
+    def get_domain(self, workspace_id: int, domain: str) -> Domain:
+        """Get a single sending domain by name."""
+        pass
+
+    @abstractmethod
+    def create_domain(self, workspace_id: int, request: CreateDomainRequest) -> Domain:
+        """Create a sending domain in a workspace."""
+        pass
+
+    @abstractmethod
+    def update_domain(
+        self, workspace_id: int, domain: str, request: UpdateDomainRequest
+    ) -> Domain:
+        """Update a domain's mutable settings."""
+        pass
+
+    @abstractmethod
+    def verify_domain(self, workspace_id: int, domain: str) -> Domain:
+        """Trigger DNS verification for a domain."""
+        pass
+
+    @abstractmethod
+    def delete_domain(self, workspace_id: int, domain: str) -> SuccessResponse:
+        """Delete a sending domain from a workspace."""
+        pass
+
+    @abstractmethod
+    def list_domain_spam_ratio_radar(
+        self, params: Optional[ListDomainSpamRatioRadarParams] = None
+    ) -> ListDomainSpamRatioRadarResponse:
+        """List domains whose spam complaint ratio reached a critical level."""
+        pass
+
+    @abstractmethod
+    def list_google_postmaster_spam_reports(
+        self, params: Optional[ListGooglePostmasterSpamReportsParams] = None
+    ) -> ListGooglePostmasterSpamReportsResponse:
+        """List daily Google Postmaster Tools spam-rate reports."""
+        pass
+
+    @abstractmethod
+    def list_snds_reports(
+        self, params: Optional[ListSndsReportsParams] = None
+    ) -> ListSndsReportsResponse:
+        """List daily Microsoft SNDS reports for the organization's sending IPs."""
         pass

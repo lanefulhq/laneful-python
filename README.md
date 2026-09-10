@@ -99,9 +99,13 @@ asyncio.run(send_email_async())
 - ✅ Email templates with dynamic data
 - ✅ File attachments
 - ✅ Email tracking (opens, clicks, unsubscribes)
+- ✅ Visible `from_header` and request-level `mail_settings`
 - ✅ Custom headers
 - ✅ Scheduled sending
-- ✅ Webhook handling
+- ✅ Webhook handling and signature verification
+- ✅ Domain management (list, create, verify, update email track, delete)
+- ✅ Unsubscribe groups
+- ✅ Deliverability analytics (spam-ratio radar, Google Postmaster, Microsoft SNDS)
 - ✅ Reply-to addresses
 - ✅ Context manager support
 - ✅ Type hints and mypy support
@@ -168,7 +172,8 @@ email = Email(
     template_data={"name": "John"},  # Optional: template variables
     send_time=1640995200,  # Optional: Unix timestamp for scheduling
     tracking=TrackingSettings(opens=True, clicks=True),  # Optional
-    webhook_data={"user_id": "123"}  # Optional: custom webhook data
+    webhook_data={"user_id": "123"},  # Optional: custom webhook data
+    from_header=Address(email="newsletter@example.com", name="Newsletter"),  # Optional
 )
 ```
 
@@ -177,9 +182,15 @@ email = Email(
 #### Single Email (Sync)
 
 ```python
-response = client.send_email(email)
+from laneful import MailSettings
+
+response = client.send_email(
+    email,
+    MailSettings(sandbox_mode=True, return_message_ids=True),
+)
 print(f"Status: {response.status}")
 print(f"Message ID: {response.message_id}")
+print(f"Message IDs: {response.message_ids}")
 ```
 
 #### Single Email (Async)
@@ -350,7 +361,10 @@ email = Email(
     tracking=TrackingSettings(
         opens=True,
         clicks=True,
-        unsubscribes=True
+        unsubscribes=True,
+        unsubscribe_group_id=123,
+        # ignored if unsubscribe_group_id is set
+        unsubscribe_group_name="Newsletters",
     ),
 )
 
@@ -369,6 +383,77 @@ async def send_emails_async(emails):
         tasks = [client.send_email(email) for email in emails]
         return await asyncio.gather(*tasks)
 
+```
+
+## Domain, unsubscribe groups, and analytics
+
+These endpoints live on the organization API host. Point the client at it:
+
+```python
+client = LanefulClient(
+    base_url="https://api.laneful.net",
+    auth_token="your-auth-token",
+)
+```
+
+Development uses `https://api.dev.laneful.net`.
+
+### Unsubscribe groups
+
+```python
+from laneful import ListUnsubscribeGroupsParams
+
+groups = client.list_unsubscribe_groups(42, ListUnsubscribeGroupsParams(limit=50))
+created = client.create_unsubscribe_group(42, "Newsletters")
+updated = client.update_unsubscribe_group(42, created.unsubscribe_group_id, "Weekly Newsletters")
+```
+
+### Domains
+
+```python
+from laneful import CreateDomainRequest, ListDomainsParams, UpdateDomainRequest
+
+listing = client.list_domains(42, ListDomainsParams(limit=50))
+domain = client.create_domain(
+    42,
+    CreateDomainRequest(domain="mydomain.com", tracking="tracking", return_path="return-path"),
+)
+domain = client.get_domain(42, "mydomain.com")
+domain = client.verify_domain(42, "mydomain.com")
+
+# Set the email track; pass "" to clear it, or omit email_track_id to leave it unchanged
+domain = client.update_domain(
+    42,
+    "mydomain.com",
+    UpdateDomainRequest(email_track_id="e59f0a35-05bc-4516-b585-c06f69c3e67e"),
+)
+
+client.delete_domain(42, "mydomain.com")
+```
+
+### Deliverability analytics
+
+```python
+from laneful import (
+    ListDomainSpamRatioRadarParams,
+    ListGooglePostmasterSpamReportsParams,
+    ListSndsReportsParams,
+)
+
+radar = client.list_domain_spam_ratio_radar(
+    ListDomainSpamRatioRadarParams(
+        workspace_ids=[1, 2],
+        domain="example.com",
+        start_date="2026-09-01",
+        end_date="2026-09-08",
+    )
+)
+
+postmaster = client.list_google_postmaster_spam_reports(
+    ListGooglePostmasterSpamReportsParams(domain="example.com")
+)
+
+snds = client.list_snds_reports(ListSndsReportsParams(ip="203.0.113.5"))
 ```
 
 ## Webhook Handling
