@@ -29,7 +29,7 @@ def get_current_version():
     return match.group(1)
 
 def set_version(new_version):
-    """Set version in pyproject.toml."""
+    """Set version in pyproject.toml and laneful/_version.py."""
     pyproject_path = get_pyproject_path()
     content = pyproject_path.read_text()
     
@@ -42,6 +42,9 @@ def set_version(new_version):
     )
     
     pyproject_path.write_text(content)
+
+    version_path = Path(__file__).parent.parent / "laneful" / "_version.py"
+    version_path.write_text(f'"""Package version."""\n\n__version__ = "{new_version}"\n')
     print(f"✓ Updated version to {new_version}")
 
 def make_dev_version(base_version=None):
