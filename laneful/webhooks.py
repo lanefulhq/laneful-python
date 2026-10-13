@@ -5,44 +5,115 @@ Webhook handling for Laneful API events.
 import hashlib
 import hmac
 import json
-from dataclasses import dataclass
+import warnings
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class WebhookEventType(Enum):
-    """Webhook event types."""
+    """Webhook event types, as sent in each event's ``event`` field."""
 
-    EMAIL_SENT = "email.sent"
-    EMAIL_DELIVERED = "email.delivered"
-    EMAIL_OPENED = "email.opened"
-    EMAIL_CLICKED = "email.clicked"
-    EMAIL_BOUNCED = "email.bounced"
-    EMAIL_COMPLAINED = "email.complained"
-    EMAIL_UNSUBSCRIBED = "email.unsubscribed"
-    EMAIL_FAILED = "email.failed"
     REQUEST = "request"
+    DELIVERY = "delivery"
+    OPEN = "open"
+    CLICK = "click"
+    DROP = "drop"
+    SPAM_COMPLAINT = "spam_complaint"
+    UNSUBSCRIBE = "unsubscribe"
+    BOUNCE = "bounce"
+
+    # Deprecated aliases for the old email.* names, which never matched a Laneful
+    # event. They resolve to the real event types and will be removed in 2.0.
+    EMAIL_SENT = "request"
+    EMAIL_DELIVERED = "delivery"
+    EMAIL_OPENED = "open"
+    EMAIL_CLICKED = "click"
+    EMAIL_BOUNCED = "bounce"
+    EMAIL_COMPLAINED = "spam_complaint"
+    EMAIL_UNSUBSCRIBED = "unsubscribe"
+    EMAIL_FAILED = "drop"
+
+
+# Deprecated email.* event names and the real event names they map to.
+_LEGACY_EVENT_NAMES = {
+    "email.sent": "request",
+    "email.delivered": "delivery",
+    "email.opened": "open",
+    "email.clicked": "click",
+    "email.bounced": "bounce",
+    "email.complained": "spam_complaint",
+    "email.unsubscribed": "unsubscribe",
+    "email.failed": "drop",
+}
+
+# Fields every event carries; everything else is event-specific and goes into data.
+_COMMON_EVENT_FIELDS = {
+    "id",
+    "event",
+    "event_type",
+    "message_id",
+    "email",
+    "timestamp",
+    "lane_id",
+    "tag",
+    "metadata",
+    "data",
+}
+
+
+def _event_name(event_type: Union[str, WebhookEventType], warn: bool = True) -> str:
+    """Normalize an event type to the name Laneful sends, mapping deprecated names."""
+    if isinstance(event_type, WebhookEventType):
+        return event_type.value
+    if event_type in _LEGACY_EVENT_NAMES:
+        if warn:
+            warnings.warn(
+                f"Webhook event name {event_type!r} is deprecated; use "
+                f"{_LEGACY_EVENT_NAMES[event_type]!r}",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+        return _LEGACY_EVENT_NAMES[event_type]
+    return event_type
 
 
 @dataclass
 class WebhookEvent:
-    """Webhook event data."""
+    """Webhook event data.
+
+    Common fields are attributes. Event-specific fields (url, referer, client_ip,
+    is_hard, code, extended_code, text, reason, mx_host, ...) are in ``data``.
+    ``id`` is unique per event and unchanged when an event is delivered again.
+    """
 
     event_type: str
     message_id: str
     email: str
     timestamp: int
     data: Dict[str, Any]
+    id: str = ""
+    lane_id: str = ""
+    tag: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "WebhookEvent":
         """Create WebhookEvent from webhook payload."""
+        extra = {k: v for k, v in data.items() if k not in _COMMON_EVENT_FIELDS}
+        nested = data.get("data")
+        if isinstance(nested, dict):
+            extra.update(nested)
         return cls(
             event_type=str(data.get("event_type") or data.get("event") or ""),
             message_id=data.get("message_id", ""),
             email=data.get("email", ""),
             timestamp=data.get("timestamp", 0),
-            data=data.get("data", {}),
+            data=extra,
+            id=data.get("id") or "",
+            lane_id=data.get("lane_id") or "",
+            tag=data.get("tag") or "",
+            metadata=data.get("metadata") or {},
         )
 
 
@@ -53,7 +124,7 @@ class WebhookHandler:
     Example:
         handler = WebhookHandler("your-webhook-secret")
 
-        @handler.on("email.delivered")
+        @handler.on("delivery")
         def handle_delivered(event: WebhookEvent):
             print(f"Email {event.message_id} was delivered to {event.email}")
 
@@ -102,28 +173,31 @@ class WebhookHandler:
         return hmac.compare_digest(expected_signature, signature)
 
     def on(
-        self, event_type: str
+        self, event_type: Union[str, WebhookEventType]
     ) -> Callable[[Callable[[WebhookEvent], None]], Callable[[WebhookEvent], None]]:
         """
         Decorator to register event handlers.
 
         Args:
-            event_type: The event type to handle (e.g., "email.delivered")
+            event_type: The event type to handle (e.g., "delivery")
 
         Returns:
             Decorator function
         """
+        name = _event_name(event_type)
 
         def decorator(
             func: Callable[[WebhookEvent], None],
         ) -> Callable[[WebhookEvent], None]:
-            self._handlers[event_type] = func
+            self._handlers[name] = func
             return func
 
         return decorator
 
     def register_handler(
-        self, event_type: str, handler: Callable[[WebhookEvent], None]
+        self,
+        event_type: Union[str, WebhookEventType],
+        handler: Callable[[WebhookEvent], None],
     ) -> None:
         """
         Register an event handler function.
@@ -132,20 +206,22 @@ class WebhookHandler:
             event_type: The event type to handle
             handler: The handler function
         """
-        self._handlers[event_type] = handler
+        self._handlers[_event_name(event_type)] = handler
 
-    def process_webhook(self, payload: Union[str, Dict[str, Any]]) -> None:
+    def process_webhook(
+        self, payload: Union[str, bytes, Dict[str, Any], List[Dict[str, Any]]]
+    ) -> None:
         """
         Process a webhook payload and call appropriate handlers.
 
         Args:
-            payload: The webhook payload (JSON string or dict)
+            payload: The webhook payload: a JSON string or bytes, a single event
+                dict, or a list of event dicts (batch mode)
 
         Raises:
             ValueError: If payload is invalid
-            KeyError: If required fields are missing
         """
-        if isinstance(payload, str):
+        if isinstance(payload, (str, bytes)):
             try:
                 data = json.loads(payload)
             except json.JSONDecodeError as e:
@@ -153,13 +229,19 @@ class WebhookHandler:
         else:
             data = payload
 
-        event = WebhookEvent.from_dict(data)
+        events = data if isinstance(data, list) else [data]
+        for event_data in events:
+            if not isinstance(event_data, dict):
+                raise ValueError("Invalid webhook event structure")
+            event = WebhookEvent.from_dict(event_data)
+            name = _event_name(event.event_type, warn=False)
+            # Call the appropriate handler if one is registered
+            if name in self._handlers:
+                self._handlers[name](event)
 
-        # Call the appropriate handler if one is registered
-        if event.event_type in self._handlers:
-            self._handlers[event.event_type](event)
-
-    def handle_event(self, event_type: str, event: WebhookEvent) -> None:
+    def handle_event(
+        self, event_type: Union[str, WebhookEventType], event: WebhookEvent
+    ) -> None:
         """
         Manually trigger an event handler.
 
@@ -167,8 +249,9 @@ class WebhookHandler:
             event_type: The event type
             event: The webhook event data
         """
-        if event_type in self._handlers:
-            self._handlers[event_type](event)
+        name = _event_name(event_type)
+        if name in self._handlers:
+            self._handlers[name](event)
 
 
 class WebhookVerifier:

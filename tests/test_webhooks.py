@@ -76,7 +76,7 @@ class TestWebhookHandler:
         """Set up test fixtures."""
         self.handler = WebhookHandler(webhook_secret="test-secret")
         self.sample_payload = {
-            "event_type": "email.delivered",
+            "event": "delivery",
             "message_id": "msg_123",
             "email": "user@example.com",
             "timestamp": 1640995200,
@@ -98,26 +98,26 @@ class TestWebhookHandler:
         """Test registering handler using decorator."""
         handler_func = Mock()
 
-        @self.handler.on("email.delivered")
+        @self.handler.on("delivery")
         def test_handler(event):
             handler_func(event)
 
-        assert "email.delivered" in self.handler._handlers
-        assert self.handler._handlers["email.delivered"] == test_handler
+        assert "delivery" in self.handler._handlers
+        assert self.handler._handlers["delivery"] == test_handler
 
     def test_register_handler_method(self):
         """Test registering handler using method."""
         handler_func = Mock()
 
-        self.handler.register_handler("email.opened", handler_func)
+        self.handler.register_handler("open", handler_func)
 
-        assert "email.opened" in self.handler._handlers
-        assert self.handler._handlers["email.opened"] == handler_func
+        assert "open" in self.handler._handlers
+        assert self.handler._handlers["open"] == handler_func
 
     def test_process_webhook_string_payload(self):
         """Test processing webhook with string payload."""
         handler_func = Mock()
-        self.handler.register_handler("email.delivered", handler_func)
+        self.handler.register_handler("delivery", handler_func)
 
         payload_str = json.dumps(self.sample_payload)
         self.handler.process_webhook(payload_str)
@@ -125,19 +125,19 @@ class TestWebhookHandler:
         handler_func.assert_called_once()
         event = handler_func.call_args[0][0]
         assert isinstance(event, WebhookEvent)
-        assert event.event_type == "email.delivered"
+        assert event.event_type == "delivery"
 
     def test_process_webhook_dict_payload(self):
         """Test processing webhook with dict payload."""
         handler_func = Mock()
-        self.handler.register_handler("email.delivered", handler_func)
+        self.handler.register_handler("delivery", handler_func)
 
         self.handler.process_webhook(self.sample_payload)
 
         handler_func.assert_called_once()
         event = handler_func.call_args[0][0]
         assert isinstance(event, WebhookEvent)
-        assert event.event_type == "email.delivered"
+        assert event.event_type == "delivery"
 
     def test_process_webhook_no_handler(self):
         """Test processing webhook with no registered handler."""
@@ -187,11 +187,11 @@ class TestWebhookHandler:
     def test_handle_event_manual(self):
         """Test manually handling an event."""
         handler_func = Mock()
-        self.handler.register_handler("email.opened", handler_func)
+        self.handler.register_handler("open", handler_func)
 
         event = WebhookEvent.from_dict(
             {
-                "event_type": "email.opened",
+                "event": "open",
                 "message_id": "msg_123",
                 "email": "user@example.com",
                 "timestamp": 1640995200,
@@ -199,7 +199,7 @@ class TestWebhookHandler:
             }
         )
 
-        self.handler.handle_event("email.opened", event)
+        self.handler.handle_event("open", event)
         handler_func.assert_called_once_with(event)
 
 
@@ -210,7 +210,7 @@ class TestWebhookIntegrations:
         """Set up test fixtures."""
         self.handler = WebhookHandler("test-secret")
         self.sample_payload = {
-            "event_type": "email.delivered",
+            "event": "delivery",
             "message_id": "msg_123",
             "email": "user@example.com",
             "timestamp": 1640995200,
@@ -222,16 +222,110 @@ class TestWebhookEventType:
     """Test webhook event type enum."""
 
     def test_event_types(self):
-        """Test all event types are defined."""
-        assert WebhookEventType.EMAIL_SENT.value == "email.sent"
-        assert WebhookEventType.EMAIL_DELIVERED.value == "email.delivered"
-        assert WebhookEventType.EMAIL_OPENED.value == "email.opened"
-        assert WebhookEventType.EMAIL_CLICKED.value == "email.clicked"
-        assert WebhookEventType.EMAIL_BOUNCED.value == "email.bounced"
-        assert WebhookEventType.EMAIL_COMPLAINED.value == "email.complained"
-        assert WebhookEventType.EMAIL_UNSUBSCRIBED.value == "email.unsubscribed"
-        assert WebhookEventType.EMAIL_FAILED.value == "email.failed"
-        assert WebhookEventType.REQUEST.value == "request"
+        """Event types match the names Laneful sends."""
+        assert [t.value for t in WebhookEventType] == [
+            "request",
+            "delivery",
+            "open",
+            "click",
+            "drop",
+            "spam_complaint",
+            "unsubscribe",
+            "bounce",
+        ]
+
+    def test_deprecated_aliases_resolve_to_real_types(self):
+        """The old EMAIL_* members are aliases of the real event types."""
+        assert WebhookEventType.EMAIL_SENT is WebhookEventType.REQUEST
+        assert WebhookEventType.EMAIL_DELIVERED is WebhookEventType.DELIVERY
+        assert WebhookEventType.EMAIL_OPENED is WebhookEventType.OPEN
+        assert WebhookEventType.EMAIL_CLICKED is WebhookEventType.CLICK
+        assert WebhookEventType.EMAIL_BOUNCED is WebhookEventType.BOUNCE
+        assert WebhookEventType.EMAIL_COMPLAINED is WebhookEventType.SPAM_COMPLAINT
+        assert WebhookEventType.EMAIL_UNSUBSCRIBED is WebhookEventType.UNSUBSCRIBE
+        assert WebhookEventType.EMAIL_FAILED is WebhookEventType.DROP
+
+
+class TestWebhookPayloads:
+    """Real Laneful payload shapes."""
+
+    def setup_method(self):
+        self.handler = WebhookHandler("test-secret")
+        self.click = {
+            "id": "019844e3a1b27c3d8e4f5a6b7c8d9e0f",
+            "event": "click",
+            "email": "user@example.com",
+            "message_id": "H-1-abc",
+            "lane_id": "5805dd85-ed8c-44db-91a7-1d53a41c86a5",
+            "tag": "newsletter",
+            "timestamp": 1753502600,
+            "metadata": {"user_id": "user_123"},
+            "url": "https://example.com/product/123",
+            "client_ip": "192.168.1.2",
+        }
+        self.bounce = {
+            "id": "8f14e45f-ceea-4e7a-b1c2-6d3f9a0b2c71",
+            "event": "bounce",
+            "email": "user@example.com",
+            "message_id": "H-1-def",
+            "lane_id": "",
+            "tag": "",
+            "timestamp": 1753502700,
+            "metadata": {},
+            "code": "550",
+            "is_hard": True,
+        }
+
+    def test_top_level_fields_are_exposed(self):
+        event = WebhookEvent.from_dict(self.click)
+        assert event.id == "019844e3a1b27c3d8e4f5a6b7c8d9e0f"
+        assert event.event_type == "click"
+        assert event.lane_id == "5805dd85-ed8c-44db-91a7-1d53a41c86a5"
+        assert event.tag == "newsletter"
+        assert event.metadata == {"user_id": "user_123"}
+        assert event.data == {
+            "url": "https://example.com/product/123",
+            "client_ip": "192.168.1.2",
+        }
+
+    def test_bounce_fields_are_exposed(self):
+        event = WebhookEvent.from_dict(self.bounce)
+        assert event.data["is_hard"] is True
+        assert event.data["code"] == "550"
+
+    def test_batch_payload_dispatches_every_event(self):
+        clicks, bounces = Mock(), Mock()
+        self.handler.on("click")(clicks)
+        self.handler.register_handler("bounce", bounces)
+
+        self.handler.process_webhook(json.dumps([self.click, self.bounce]))
+
+        clicks.assert_called_once()
+        bounces.assert_called_once()
+        assert clicks.call_args[0][0].data["url"] == "https://example.com/product/123"
+
+    def test_bytes_payload(self):
+        handler_func = Mock()
+        self.handler.register_handler("click", handler_func)
+        self.handler.process_webhook(json.dumps(self.click).encode("utf-8"))
+        handler_func.assert_called_once()
+
+    def test_enum_member_registers_handler(self):
+        handler_func = Mock()
+        self.handler.on(WebhookEventType.CLICK)(handler_func)
+        self.handler.process_webhook(self.click)
+        handler_func.assert_called_once()
+
+    def test_batch_with_invalid_event_raises(self):
+        with pytest.raises(ValueError):
+            self.handler.process_webhook([self.click, "not-an-event"])
+
+    def test_deprecated_event_name_still_works_with_warning(self):
+        handler_func = Mock()
+        with pytest.warns(DeprecationWarning, match="'email.clicked' is deprecated"):
+            self.handler.on("email.clicked")(handler_func)
+        self.handler.process_webhook(self.click)
+        handler_func.assert_called_once()
 
 
 class TestWebhookVerifier:

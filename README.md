@@ -474,13 +474,14 @@ The library provides comprehensive webhook handling for email events:
 ```python
 from laneful.webhooks import WebhookHandler, WebhookEvent
 
-webhook_payload = dict()
+# The raw request body (str or bytes), a single event dict, or a list of events
+webhook_payload = request_body
 
 # Initialize webhook handler
 handler = WebhookHandler(webhook_secret="your-webhook-secret")
 
 # Register event handlers by event name: request, delivery, open, click,
-# drop, spam_complaint, unsubscribe, bounce
+# drop, spam_complaint, unsubscribe, bounce (or WebhookEventType members)
 @handler.on("delivery")
 def handle_delivered(event: WebhookEvent):
     print(f"Email {event.message_id} delivered to {event.email}")
@@ -491,13 +492,22 @@ def handle_opened(event: WebhookEvent):
 
 @handler.on("click")
 def handle_clicked(event: WebhookEvent):
-    print(f"Email {event.message_id} link clicked by {event.email}")
+    print(f"Link clicked: {event.data['url']}")
 
-# Process webhook payload
+@handler.on("bounce")
+def handle_bounced(event: WebhookEvent):
+    kind = "hard" if event.data.get("is_hard") else "soft"
+    print(f"{kind} bounce for {event.email}: {event.data.get('code')}")
+
+# Process the webhook payload: a single event or a batch (JSON array)
 handler.process_webhook(webhook_payload)
 ```
 
-`process_webhook` handles one event per call. If batch mode is turned on for your webhook, Laneful sends a JSON array of events, which `process_webhook` does not accept yet, so keep batch mode off when using `WebhookHandler`.
+Every event has `id`, `event_type`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `webhook_data` sent with the email). Event-specific fields such as `url`, `client_ip`, `is_hard`, `code` and `reason` are in `event.data`. `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed.
+
+Temporary delivery failures (deferrals) are sent as `bounce` events with `is_hard: false` while Laneful keeps retrying for up to 72 hours.
+
+The old `email.*` event names (`email.delivered`, `email.opened` and so on) and the `WebhookEventType.EMAIL_*` members are deprecated. They still work, mapped to the real event names, and will be removed in 2.0.
 
 ## Error Handling
 
