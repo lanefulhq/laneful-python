@@ -193,6 +193,19 @@ print(f"Message ID: {response.message_id}")
 print(f"Message IDs: {response.message_ids}")
 ```
 
+#### Duplicate Send Protection
+
+Pass an `idempotency_key` (1 to 36 bytes) and reuse it when you retry a send, for example after a timeout. The client does not retry on its own.
+
+```python
+from laneful import MailSettings
+
+settings = MailSettings(idempotency_key=f"order-{order_id}")
+response = client.send_email(email, settings)
+```
+
+Laneful remembers a key per organization for one hour. A repeated request with the same key gets status `accepted` with no message IDs and sends nothing, even if the emails differ, so use a new key for every distinct send. If a request fails, the key is released and a retry with the same key is processed normally. Sandbox mode requests are not deduplicated.
+
 #### Single Email (Async)
 
 ```python
