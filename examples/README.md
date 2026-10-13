@@ -16,6 +16,7 @@ python mail_settings_example.py
 python domains_example.py
 python unsubscribe_groups_example.py
 python analytics_example.py
+python webhook_example.py
 ```
 
 ## Examples
@@ -26,6 +27,7 @@ python analytics_example.py
 | `domains_example.py` | List, create, verify, and update sending domains |
 | `unsubscribe_groups_example.py` | Create, update, and list unsubscribe groups |
 | `analytics_example.py` | Spam-ratio radar, Google Postmaster, and Microsoft SNDS |
+| `webhook_example.py` | Webhook receiver: verifies the signature and logs single or batch events |
 
 ## Environment variables
 
@@ -37,3 +39,5 @@ python analytics_example.py
 | `LANEFUL_TO_EMAILS` | Comma-separated recipients |
 | `LANEFUL_ORG_BASE_URL` | Organization API host (`https://api.laneful.net`) |
 | `LANEFUL_WORKSPACE_ID` | Workspace ID for org API examples |
+| `LANEFUL_WEBHOOK_SECRET` | Webhook signing secret for `webhook_example.py` |
+| `PORT` | Port for `webhook_example.py` (default 8000) |

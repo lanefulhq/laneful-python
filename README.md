@@ -474,9 +474,6 @@ The library provides comprehensive webhook handling for email events:
 ```python
 from laneful.webhooks import WebhookHandler, WebhookEvent
 
-# The raw request body (str or bytes), a single event dict, or a list of events
-webhook_payload = request_body
-
 # Initialize webhook handler
 handler = WebhookHandler(webhook_secret="your-webhook-secret")
 
@@ -499,9 +496,15 @@ def handle_bounced(event: WebhookEvent):
     kind = "hard" if event.data.get("is_hard") else "soft"
     print(f"{kind} bounce for {event.email}: {event.data.get('code')}")
 
-# Process the webhook payload: a single event or a batch (JSON array)
-handler.process_webhook(webhook_payload)
+# In your web framework's request handler: verify the raw request body
+# (bytes or str, not re-serialized JSON), then process a single event or a batch
+signature = request_headers.get("x-webhook-signature")
+if not signature or not handler.verify_signature(request_body, signature):
+    raise PermissionError("Invalid webhook signature")  # answer 401
+handler.process_webhook(request_body)
 ```
+
+See [`examples/webhook_example.py`](examples/webhook_example.py) for a runnable receiver.
 
 Every event has `id`, `event_type`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `webhook_data` sent with the email). Event-specific fields such as `url`, `client_ip`, `is_hard`, `code` and `reason` are in `event.data`. `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed.
 
