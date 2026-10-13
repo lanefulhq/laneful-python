@@ -1,6 +1,6 @@
 # Laneful Python Client
 
-A Python client library for the [Laneful API](https://app.laneful.com/docs/sending-email), providing easy email sending capabilities with support for templates, attachments, tracking, and webhooks. 
+A Python client library for the [Laneful API](https://laneful.com/docs/sending-email/), providing easy email sending capabilities with support for templates, attachments, tracking, and webhooks. 
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -121,7 +121,7 @@ asyncio.run(send_email_async())
 from laneful import LanefulClient
 
 client = LanefulClient(
-    base_url="https://custom-endpoint.laneful.net",
+    base_url="https://custom-endpoint.send.laneful.net",
     auth_token="your-auth-token",
     timeout=30.0,  # Optional: request timeout in seconds
     verify_ssl=True  # Optional: SSL verification
@@ -135,7 +135,7 @@ from laneful import AsyncLanefulClient
 
 # Method 1: Using async context manager (recommended)
 async with AsyncLanefulClient(
-    base_url="https://custom-endpoint.laneful.net",
+    base_url="https://custom-endpoint.send.laneful.net",
     auth_token="your-auth-token",
     timeout=30.0,  # Optional: request timeout in seconds
     verify_ssl=True  # Optional: SSL verification
@@ -396,8 +396,6 @@ client = LanefulClient(
 )
 ```
 
-Development uses `https://api.dev.laneful.net`.
-
 ### Unsubscribe groups
 
 ```python
@@ -468,23 +466,25 @@ webhook_payload = dict()
 # Initialize webhook handler
 handler = WebhookHandler(webhook_secret="your-webhook-secret")
 
-# Register event handlers
-@handler.on("email.delivered")
+# Register event handlers by event name: request, delivery, open, click,
+# drop, spam_complaint, unsubscribe, bounce
+@handler.on("delivery")
 def handle_delivered(event: WebhookEvent):
     print(f"Email {event.message_id} delivered to {event.email}")
 
-@handler.on("email.opened")  
+@handler.on("open")
 def handle_opened(event: WebhookEvent):
     print(f"Email {event.message_id} opened by {event.email}")
 
-@handler.on("email.clicked")
+@handler.on("click")
 def handle_clicked(event: WebhookEvent):
-    url = event.data.get("url")
-    print(f"Link clicked: {url}")
+    print(f"Email {event.message_id} link clicked by {event.email}")
 
 # Process webhook payload
 handler.process_webhook(webhook_payload)
 ```
+
+`process_webhook` handles one event per call. If batch mode is turned on for your webhook, Laneful sends a JSON array of events, which `process_webhook` does not accept yet, so keep batch mode off when using `WebhookHandler`.
 
 ## Error Handling
 
