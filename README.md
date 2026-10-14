@@ -193,6 +193,19 @@ print(f"Message ID: {response.message_id}")
 print(f"Message IDs: {response.message_ids}")
 ```
 
+#### Duplicate Send Protection
+
+Pass an `idempotency_key` (1 to 36 bytes) and reuse it when you retry a send, for example after a timeout. The client does not retry on its own.
+
+```python
+from laneful import MailSettings
+
+settings = MailSettings(idempotency_key=f"order-{order_id}")
+response = client.send_email(email, settings)
+```
+
+Laneful remembers a key per organization for one hour. A repeated request with the same key gets status `accepted` with no message IDs and sends nothing, even if the emails differ, so use a new key for every distinct send. Detection is best effort. A request that fails with HTTP 500 doesn't keep its key, so a retry with it is processed as a new request: before resending after a 500, check your webhook events (a `request` event means Laneful accepted the email). Sandbox mode requests are not deduplicated.
+
 #### Single Email (Async)
 
 ```python
@@ -461,13 +474,11 @@ The library provides comprehensive webhook handling for email events:
 ```python
 from laneful.webhooks import WebhookHandler, WebhookEvent
 
-webhook_payload = dict()
-
 # Initialize webhook handler
 handler = WebhookHandler(webhook_secret="your-webhook-secret")
 
 # Register event handlers by event name: request, delivery, open, click,
-# drop, spam_complaint, unsubscribe, bounce
+# drop, spam_complaint, unsubscribe, bounce (or WebhookEventType members)
 @handler.on("delivery")
 def handle_delivered(event: WebhookEvent):
     print(f"Email {event.message_id} delivered to {event.email}")
@@ -478,13 +489,30 @@ def handle_opened(event: WebhookEvent):
 
 @handler.on("click")
 def handle_clicked(event: WebhookEvent):
-    print(f"Email {event.message_id} link clicked by {event.email}")
+    print(f"Link clicked: {event.data['url']}")
 
-# Process webhook payload
-handler.process_webhook(webhook_payload)
+@handler.on("bounce")
+def handle_bounced(event: WebhookEvent):
+    kind = "hard" if event.data.get("is_hard") else "soft"
+    print(f"{kind} bounce for {event.email}: {event.data.get('code')}")
+
+# In your web framework's request handler: verify the raw request body
+# (bytes or str, not re-serialized JSON), then process a single event or a batch
+signature = request_headers.get("x-webhook-signature")
+if not signature or not handler.verify_signature(request_body, signature):
+    raise PermissionError("Invalid webhook signature")  # answer 401
+handler.process_webhook(request_body)
 ```
 
-`process_webhook` handles one event per call. If batch mode is turned on for your webhook, Laneful sends a JSON array of events, which `process_webhook` does not accept yet, so keep batch mode off when using `WebhookHandler`.
+See [`examples/webhook_example.py`](examples/webhook_example.py) for a runnable receiver.
+
+`verify_signature` returns `False` for every payload when the handler was created without a secret. Event types this SDK doesn't know yet are passed through, not rejected, so register handlers only for the ones you need.
+
+Every event has `id`, `event_type`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `webhook_data` sent with the email). Event-specific fields such as `url`, `client_ip`, `is_hard`, `code` and `reason` are in `event.data`. `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed.
+
+Temporary delivery failures (deferrals) are sent as `bounce` events with `is_hard: false` while Laneful keeps retrying for up to 72 hours.
+
+The old `email.*` event names (`email.delivered`, `email.opened` and so on) and the `WebhookEventType.EMAIL_*` members are deprecated. They still work, mapped to the real event names, and will be removed in 2.0.
 
 ## Error Handling
 

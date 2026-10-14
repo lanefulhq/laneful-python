@@ -144,6 +144,16 @@ class TestMailSettings:
             "return_message_ids": False,
         }
 
+    def test_idempotency_key(self):
+        """idempotency_key is sent when set and validated as 1 to 36 bytes."""
+        assert MailSettings(idempotency_key="order-1234").to_dict() == {
+            "idempotency_key": "order-1234"
+        }
+        MailSettings(idempotency_key="k" * 36)
+        for key in ["", "k" * 37, "é" * 19]:
+            with pytest.raises(ValueError, match="between 1 and 36 bytes"):
+                MailSettings(idempotency_key=key)
+
 
 class TestEmail:
     """Test cases for Email model."""

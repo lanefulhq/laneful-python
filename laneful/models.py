@@ -77,14 +77,29 @@ class TrackingSettings:
 
 @dataclass
 class MailSettings:
-    """Request-level mail settings (sandbox mode, return message IDs)."""
+    """Request-level mail settings (sandbox mode, return message IDs, idempotency key).
+
+    idempotency_key protects against duplicate sends: Laneful accepts a key once per
+    organization for one hour. A repeated request with the same key is answered with
+    status "accepted" (and no message IDs) and sends nothing. Keys are 1 to 36 bytes.
+    """
 
     sandbox_mode: Optional[bool] = None
     return_message_ids: Optional[bool] = None
+    idempotency_key: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate the idempotency key against the API's 1 to 36 byte limit."""
+        if self.idempotency_key is not None:
+            length = len(self.idempotency_key.encode("utf-8"))
+            if length < 1 or length > 36:
+                raise ValueError("idempotency_key must contain between 1 and 36 bytes")
 
     def to_dict(self) -> Dict[str, Any]:
         """Omit unset fields; send false when explicitly set."""
         result: Dict[str, Any] = {}
+        if self.idempotency_key is not None:
+            result["idempotency_key"] = self.idempotency_key
         if self.sandbox_mode is not None:
             result["sandbox_mode"] = self.sandbox_mode
         if self.return_message_ids is not None:
