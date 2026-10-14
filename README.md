@@ -506,6 +506,8 @@ handler.process_webhook(request_body)
 
 See [`examples/webhook_example.py`](examples/webhook_example.py) for a runnable receiver.
 
+`verify_signature` returns `False` for every payload when the handler was created without a secret. Event types this SDK doesn't know yet are passed through, not rejected, so register handlers only for the ones you need.
+
 Every event has `id`, `event_type`, `email`, `message_id`, `lane_id`, `tag`, `timestamp` and `metadata` (the `webhook_data` sent with the email). Event-specific fields such as `url`, `client_ip`, `is_hard`, `code` and `reason` are in `event.data`. `id` is unique per event and stays the same when Laneful delivers the event again on retry or in a batch, so use it to skip events you have already processed.
 
 Temporary delivery failures (deferrals) are sent as `bounce` events with `is_hard: false` while Laneful keeps retrying for up to 72 hours.

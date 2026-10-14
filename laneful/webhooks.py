@@ -152,10 +152,11 @@ class WebhookHandler:
             signature: The signature header from the webhook request
 
         Returns:
-            True if signature is valid, False otherwise
+            True if signature is valid, False otherwise (always False when the
+            handler was created without a secret)
         """
-        if not self.webhook_secret:
-            return True  # Skip verification if no secret is configured
+        if not self.webhook_secret or not signature:
+            return False
 
         if isinstance(payload, str):
             payload = payload.encode("utf-8")
@@ -324,8 +325,10 @@ class WebhookVerifier:
             if field_name not in event:
                 raise ValueError(f"Missing required field: {field_name}")
 
-        if event["event"] not in cls.VALID_EVENT_TYPES:
-            raise ValueError(f"Invalid event type: {event['event']}")
+        # Unknown event types are kept, so a batch that includes an event type
+        # added after this SDK release isn't rejected as a whole.
+        if not isinstance(event["event"], str) or not event["event"]:
+            raise ValueError(f"Invalid event type: {event['event']!r}")
 
         if "@" not in str(event["email"]):
             raise ValueError(f"Invalid email format: {event['email']}")

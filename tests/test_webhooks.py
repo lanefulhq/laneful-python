@@ -169,11 +169,17 @@ class TestWebhookHandler:
         assert not self.handler.verify_signature(payload, "invalid")
 
     def test_verify_signature_no_secret(self):
-        """Test signature verification without secret (should always pass)."""
+        """Without a secret, every signature is rejected."""
         handler = WebhookHandler()  # No secret
         payload = json.dumps(self.sample_payload)
 
-        assert handler.verify_signature(payload, "any-signature")
+        assert not handler.verify_signature(payload, "any-signature")
+
+    def test_verify_signature_empty(self):
+        """An empty signature is rejected."""
+        payload = json.dumps(self.sample_payload)
+
+        assert not self.handler.verify_signature(payload, "")
 
     def test_verify_signature_bytes_payload(self):
         """Test signature verification with bytes payload."""
@@ -360,10 +366,23 @@ class TestWebhookVerifier:
         assert batch["is_batch"] is True
         assert len(batch["events"]) == 2
 
-    def test_parse_rejects_unknown_event(self):
-        """Unknown event types are rejected."""
+    def test_parse_keeps_unknown_event(self):
+        """An unknown event type doesn't reject the rest of the batch."""
+        known = {
+            "event": "delivery",
+            "email": "user@example.com",
+            "lane_id": "11111111-1111-1111-1111-111111111111",
+            "message_id": "msg_1",
+            "timestamp": 1640995200,
+        }
+        unknown = {**known, "event": "a-future-event", "message_id": "msg_2"}
+        batch = WebhookVerifier.parse_webhook_payload(json.dumps([known, unknown]))
+        assert [e["event"] for e in batch["events"]] == ["delivery", "a-future-event"]
+
+    def test_parse_rejects_empty_event_type(self):
+        """A missing or empty event type is still rejected."""
         event = {
-            "event": "not-a-real-event",
+            "event": "",
             "email": "user@example.com",
             "lane_id": "11111111-1111-1111-1111-111111111111",
             "message_id": "msg_1",
