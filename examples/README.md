@@ -4,8 +4,7 @@ Copy `env.example` to `.env` and fill in your values.
 
 Email sending uses a send host (`LANEFUL_BASE_URL`). Domain, unsubscribe-group,
 and analytics examples use the organization API host
-(`LANEFUL_ORG_BASE_URL`, default `https://api.laneful.net`; development is
-`https://api.dev.laneful.net`).
+(`LANEFUL_ORG_BASE_URL`, default `https://api.laneful.net`).
 
 ## Run locally
 
