@@ -49,7 +49,7 @@ jobs:
         "
     
     - name: Validate workflow syntax
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           console.log('✓ GitHub Actions workflows syntax is valid')
