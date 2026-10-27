@@ -142,11 +142,14 @@ class Email:
         if self.webhook_data:
             if len(self.webhook_data) > 20:
                 raise ValueError("Webhook data cannot have more than 20 keys")
+            # The send API counts UTF-8 bytes, so "é" counts as 2.
             for key, value in self.webhook_data.items():
-                if len(str(key)) > 50:
-                    raise ValueError("Webhook data keys cannot exceed 50 characters")
-                if len(str(value)) > 100:
-                    raise ValueError("Webhook data values cannot exceed 100 characters")
+                if len(str(key).encode("utf-8")) > 50:
+                    raise ValueError("Webhook data keys cannot exceed 50 bytes (UTF-8)")
+                if len(str(value).encode("utf-8")) > 100:
+                    raise ValueError(
+                        "Webhook data values cannot exceed 100 bytes (UTF-8)"
+                    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API requests."""

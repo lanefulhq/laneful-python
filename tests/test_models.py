@@ -336,8 +336,8 @@ class TestEmail:
             )
 
     def test_webhook_data_key_length(self):
-        """Webhook data keys cannot exceed 50 characters."""
-        with pytest.raises(ValueError, match="50 characters"):
+        """Webhook data keys cannot exceed 50 bytes."""
+        with pytest.raises(ValueError, match="50 bytes"):
             Email(
                 from_address=self.from_addr,
                 to=[self.to_addr],
@@ -347,8 +347,8 @@ class TestEmail:
             )
 
     def test_webhook_data_value_length(self):
-        """Webhook data values cannot exceed 100 characters."""
-        with pytest.raises(ValueError, match="100 characters"):
+        """Webhook data values cannot exceed 100 bytes."""
+        with pytest.raises(ValueError, match="100 bytes"):
             Email(
                 from_address=self.from_addr,
                 to=[self.to_addr],
@@ -356,6 +356,33 @@ class TestEmail:
                 text_content="Test content",
                 webhook_data={"key": "v" * 101},
             )
+
+    @pytest.mark.parametrize(
+        ("webhook_data", "error"),
+        [
+            # "é" is 2 bytes in UTF-8: 25 fill a 50-byte key, 50 a 100-byte value.
+            ({"é" * 25: "é" * 50}, None),
+            ({"é" * 26: "value"}, "50 bytes"),
+            ({"key": "é" * 51}, "100 bytes"),
+        ],
+    )
+    def test_webhook_data_counts_utf8_bytes(self, webhook_data, error):
+        """Webhook data limits are counted in UTF-8 bytes, as the API counts them."""
+
+        def build():
+            return Email(
+                from_address=self.from_addr,
+                to=[self.to_addr],
+                subject="Test Subject",
+                text_content="Test content",
+                webhook_data=webhook_data,
+            )
+
+        if error is None:
+            assert build().webhook_data == webhook_data
+        else:
+            with pytest.raises(ValueError, match=error):
+                build()
 
 
 class TestEmailResponse:
